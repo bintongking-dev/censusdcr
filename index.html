@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DCR Suite Handover &amp; Census Dashboard</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Tesseract.js OCR CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #fbf9f4;
+      color: #1c1917;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f5f0e6; }
+    ::-webkit-scrollbar-thumb { background: #d6cbba; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #b8a892; }
+    details summary::-webkit-details-marker { display: none; }
+  </style>
+</head>
+<body class="min-h-screen pb-16 antialiased selection:bg-amber-200 selection:text-amber-900">
+
+  <datalist id="oxygenOptions">
+    <option value="Room Air">
+    <option value="Nasal Prongs 3L/min">
+    <option value="Simple Face Mask 6L/min">
+    <option value="High Flow Mask 10L/min">
+    <option value="Non-Rebreather Mask (NRM) 15L/min">
+    <option value="HFNC (High Flow Nasal Cannula)">
+    <option value="NIV / BiPAP">
+    <option value="Intubated / Mechanical Ventilation">
+  </datalist>
+
+  <!-- HEADER & NAVIGATION -->
+  <header class="sticky top-0 z-40 bg-[#fbf9f4]/95 backdrop-blur-md border-b border-stone-200/90 px-4 lg:px-8 py-3 shadow-xs transition">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+      
+      <div class="flex items-center gap-3 w-full md:w-auto">
+        <div class="relative w-12 h-12 flex-shrink-0">
+          <img 
+            src="LOGO DCR BULAT.jpg" 
+            alt="DCR Emblem" 
+            class="w-12 h-12 rounded-full object-contain shadow-sm border border-stone-300"
+            onerror="this.style.display='none'; document.getElementById('dcr-svg-logo-fallback').style.display='block';"
+          >
+          <div id="dcr-svg-logo-fallback" class="w-12 h-12 rounded-full shadow-sm" style="display:none;">
+            <svg viewBox="0 0 100 100" class="w-full h-full">
+              <circle cx="50" cy="50" r="48" fill="#444444" stroke="#e5e5e5" stroke-width="2.5"/>
+              <circle cx="50" cy="50" r="45" fill="none" stroke="#666666" stroke-width="1"/>
+              <path d="M 46 68 C 30 68 22 56 22 45 C 22 34 32 33 46 33 C 58 33 60 41 50 41 C 40 41 33 40 33 45 C 33 50 38 58 46 58 Z" fill="#e11d48"/>
+              <path d="M 40 18 L 65 18 C 78 18 80 32 80 40 C 80 50 72 56 58 56 L 78 81 L 64 81 L 46 58 L 46 68 L 38 68 L 38 27 L 65 27 C 71 27 72 34 72 38 C 72 44 68 47 60 47 L 46 47 Z" fill="#ffffff"/>
+            </svg>
+          </div>
+        </div>
+
+        <div>
+          <h1 class="text-xs sm:text-sm md:text-base font-extrabold uppercase tracking-tight text-stone-900 leading-tight">
+            DAMAGE CONTROL RESUSCITATION SUITE (DCR SUITE)
+          </h1>
+          <p class="text-[11px] font-semibold text-stone-600">
+            EMERGENCY DEPARTMENT • HOSPITAL SUNGAI BULOH
+          </p>
+          <div class="mt-0.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-100 border border-rose-200 text-rose-800 text-[10px] font-bold tracking-wider uppercase">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-600 animate-ping"></span>
+            TRAUMA CRITICAL AND OPERATIVE CARE
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center flex-wrap gap-2 w-full md:w-auto justify-end">
+        <div class="px-3 py-1.5 bg-stone-100 border border-stone-200 rounded-xl text-stone-800 text-[11px] font-mono-code font-bold flex items-center gap-2 shadow-inner">
+          <div class="flex items-center gap-1 text-stone-600">
+            <i data-lucide="calendar" class="w-3.5 h-3.5 text-stone-500"></i>
+            <span id="headerLiveDate">-- --- ----</span>
+          </div>
+          <span class="text-stone-300 font-light">|</span>
+          <div class="flex items-center gap-1 text-stone-900">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-stone-500"></i>
+            <span id="headerLiveClock">--:--:-- MYT</span>
+          </div>
+        </div>
+
+        <!-- Real-Time Sync Indicator -->
+        <div id="syncStatusBadge" class="px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-[10px] font-bold flex items-center gap-1.5 shadow-2xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="syncStatusText">Connecting...</span>
+          <span id="activeUserDisplay" class="font-mono-code text-[9px] text-emerald-700 bg-emerald-100 px-1 py-0.2 rounded hidden sm:inline truncate max-w-[120px]">-</span>
+        </div>
+
+        <button type="button" onclick="openFaqModal()" class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs rounded-xl shadow-xs flex items-center gap-1 transition cursor-pointer">
+          <i data-lucide="help-circle" class="w-3.5 h-3.5 text-amber-600"></i>
+          <span>FAQ Guide</span>
+        </button>
+
+        <button type="button" onclick="openMonthlyRegistryModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition cursor-pointer">
+          <i data-lucide="database" class="w-3.5 h-3.5"></i>
+          <span>Registry</span>
+        </button>
+
+        <button type="button" id="headerWhatsAppBtn" onclick="handleHeaderWhatsAppClick()" class="px-3 py-1.5 bg-stone-200/90 text-stone-500 hover:bg-stone-300 font-bold text-xs rounded-xl shadow-xs border border-stone-300 flex items-center gap-1.5 transition cursor-pointer">
+          <i data-lucide="lock" class="w-3.5 h-3.5 text-stone-500"></i>
+          <span>WhatsApp (Locked)</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 lg:px-8 pt-5 space-y-6">
+
+    <!-- SECTION 1: ON-DUTY SHIFT TEAM -->
+    <section class="bg-white border border-stone-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-2.5 border-b border-stone-100 gap-3">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-stone-800 text-white flex items-center justify-center">
+            <i data-lucide="users" class="w-3.5 h-3.5"></i>
+          </div>
+          <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-stone-900">On-Duty Shift Team</h2>
+            <p class="text-[11px] text-stone-500">Official Roster Order for Shift Handover &amp; WhatsApp Transmission</p>
+          </div>
+        </div>
+
+        <div class="flex items-center flex-wrap gap-2">
+          <div class="flex items-center gap-1.5 bg-stone-100 p-1 rounded-xl border border-stone-200 shadow-2xs">
+            <span class="text-[10px] font-extrabold uppercase text-stone-600 pl-1.5 flex items-center gap-1">
+              <i data-lucide="calendar" class="w-3.5 h-3.5 text-stone-500"></i>
+              <span>Date:</span>
+            </span>
+            <input type="date" id="shiftDateInput" onchange="onShiftDateChange(this.value)" class="bg-white border border-stone-300 rounded-lg px-2 py-0.5 text-xs font-bold text-stone-800 focus:outline-none focus:ring-1 focus:ring-stone-400 cursor-pointer">
+          </div>
+
+          <div class="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200">
+            <button type="button" onclick="setShift('Morning')" id="shiftBtn_Morning" class="px-3 py-1 rounded-lg text-xs font-extrabold bg-stone-900 text-white shadow-xs transition">Morning (AM)</button>
+            <button type="button" onclick="setShift('Evening')" id="shiftBtn_Evening" class="px-3 py-1 rounded-lg text-xs font-bold text-stone-600 hover:text-stone-900 transition">Evening (PM)</button>
+            <button type="button" onclick="setShift('Night')" id="shiftBtn_Night" class="px-3 py-1 rounded-lg text-xs font-bold text-stone-600 hover:text-stone-900 transition">Night (Night)</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div class="bg-stone-50/80 border border-stone-200/80 rounded-xl p-3">
+          <div class="flex items-center gap-1.5 mb-2.5 pb-1.5 border-b border-stone-200/60">
+            <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-stone-700">Trauma Consultants, Physicians &amp; Supervisors</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            <div>
+              <label class="block text-[10px] font-extrabold text-stone-700 uppercase mb-1">Trauma Consultant</label>
+              <input type="text" id="rosterConsultant" placeholder="Dr..." oninput="saveLocalRoster()" class="w-full bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs font-medium focus:ring-2 focus:ring-stone-400 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[10px] font-extrabold text-stone-700 uppercase mb-1">Trauma / Emergency Physician</label>
+              <input type="text" id="rosterPhysician" placeholder="Dr..." oninput="saveLocalRoster()" class="w-full bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs font-medium focus:ring-2 focus:ring-stone-400 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[10px] font-extrabold text-stone-700 uppercase mb-1">Trauma Supervisors</label>
+              <input type="text" id="rosterPenyelia" placeholder="Matron / Sister / JT / AMO..." oninput="saveLocalRoster()" class="w-full bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs font-medium focus:ring-2 focus:ring-stone-400 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[10px] font-extrabold text-stone-700 uppercase mb-1">Medical Officer (MO)</label>
+              <input type="text" id="rosterMO" placeholder="Dr..." oninput="saveLocalRoster()" class="w-full bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs font-medium focus:ring-2 focus:ring-stone-400 focus:outline-none">
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-stone-50/80 border border-stone-200/80 rounded-xl p-3">
+          <div class="flex items-center gap-1.5 mb-2.5 pb-1.5 border-b border-stone-200/60">
+            <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-stone-700">HO, Medical Assistant, Nursing &amp; PPK</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            <div>
+              <label class="block text-[10px] font-extrabold text-stone-700 uppercase mb-1">House Officer (HO)</label>
+              <input type="text" id="rosterHO" placeholder="Dr..." oninput="saveLocalRoster()" class="w-full bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs font-medium focus:ring-2 focus:ring-stone-400 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[10px] font-extrabold text-stone-700 uppercase mb-1">Medical Assistant (MA)</label>
+              <input type="text" id="rosterMA" placeholder="AMO..." oninput="saveLocalRoster()" class="w-full bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs font-medium focus:ring-2 focus:ring-stone-400 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[10px] font-extrabold text-stone-700 uppercase mb-1">Staff Nurse (SN)</label>
+              <input type="text" id="rosterSN" placeholder="SN..." oninput="saveLocalRoster()" class="w-full bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs font-medium focus:ring-2 focus:ring-stone-400 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[10px] font-extrabold text-stone-700 uppercase mb-1">PPK Support</label>
+              <input type="text" id="rosterPPK" placeholder="PPK..." oninput="saveLocalRoster()" class="w-full bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs font-medium focus:ring-2 focus:ring-stone-400 focus:outline-none">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: 10 RESUSCITATION BAYS -->
+    <section class="space-y-4">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-extrabold uppercase tracking-tight text-stone-900 flex items-center gap-2">
+            <span>Bed Roster &amp; DCR Clinical Status</span>
+            <span class="text-[11px] font-normal text-stone-500">(10 Resuscitation Bays)</span>
+          </h2>
+          <p class="text-xs text-stone-500">Formatted to standard: SB, Diagnosis, Transfer In, TXA, Oxygen Therapy, Disposition &amp; Status</p>
+        </div>
+
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button type="button" onclick="filterZone('ALL')" id="filterBtn_ALL" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-stone-900 text-white transition cursor-pointer">ALL (10)</button>
+          <button type="button" onclick="filterZone('DCR')" id="filterBtn_DCR" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-100 text-rose-800 hover:bg-rose-200 transition cursor-pointer">DCR 1-2 (RED)</button>
+          <button type="button" onclick="filterZone('STEPDOWN')" id="filterBtn_STEPDOWN" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 transition cursor-pointer">STEPDOWN 1-4 (YELLOW)</button>
+          <button type="button" onclick="filterZone('EXT')" id="filterBtn_EXT" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-sky-100 text-sky-800 hover:bg-sky-200 transition cursor-pointer">DCR Ext 1-4 (BLUE)</button>
+        </div>
+      </div>
+
+      <div id="bedsGridContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </section>
+
+    <!-- SECTION 3: CENSUS REPORT -->
+    <section class="bg-[#f0fdf4] border-2 border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-emerald-200 flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+            <i data-lucide="activity" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h2 class="text-xs font-extrabold uppercase tracking-wider text-emerald-950">
+              Census Report: Shift Census &amp; Case Disposition Counters
+            </h2>
+            <p class="text-[11px] text-emerald-800">Live Shift Census &amp; Resuscitation Case Summary</p>
+          </div>
+        </div>
+
+        <div>
+          <button type="button" onclick="generateAndSend24HourCensusWhatsApp()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition cursor-pointer">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+              <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766 0-3.187-2.59-5.771-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.698.077-2.022-.472-1.691-.703-2.775-2.434-2.859-2.548-.084-.114-.683-.91-.683-1.737 0-.827.432-1.233.585-1.402.153-.169.336-.212.449-.212.112 0 .225.002.324.007.104.005.244-.04.382.291.144.344.492 1.205.535 1.293.043.088.072.192.014.308-.057.117-.087.19-.172.291-.086.102-.18.228-.258.306-.086.086-.176.18-.076.353.1.172.444.733.953 1.187.656.586 1.209.768 1.382.854.173.086.274.072.375-.044.102-.116.435-.506.551-.68.115-.174.232-.145.39-.087.16.058 1.012.478 1.186.565.174.087.29.13.333.203.044.073.044.423-.1.828zM12 2C6.477 2 2 6.477 2 12c0 1.891.524 3.66 1.436 5.176L2 22l4.981-1.309A9.954 9.954 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18.2c-1.636 0-3.15-.494-4.417-1.34l-.317-.212-3.096.812.827-3.018-.233-.37A8.172 8.172 0 013.8 12c0-4.521 3.679-8.2 8.2-8.2 4.522 0 8.2 3.679 8.2 8.2 0 4.522-3.678 8.2-8.2 8.2Z"/>
+            </svg>
+            <span>Generate 24 Hour Census &amp; Send</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2.5">
+        <div class="bg-white border-2 border-stone-300 rounded-xl p-2 text-center flex flex-col justify-between">
+          <span class="block text-[10px] font-bold text-stone-600 uppercase">Carry Forward</span>
+          <div class="flex items-center justify-between mt-1 gap-1">
+            <button type="button" onclick="adjustCensus('carryForward', -1)" class="w-6 h-6 rounded bg-stone-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">−</button>
+            <input type="number" id="c_carryForward" min="0" value="0" onchange="updateCensusField('carryForward', this.value)" class="w-10 text-center font-extrabold text-stone-800 bg-transparent focus:outline-none">
+            <button type="button" onclick="adjustCensus('carryForward', 1)" class="w-6 h-6 rounded bg-stone-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">+</button>
+          </div>
+        </div>
+
+        <div class="bg-white border-2 border-sky-300 rounded-xl p-2 text-center flex flex-col justify-between">
+          <span class="block text-[10px] font-bold text-sky-700 uppercase">New Cases</span>
+          <div class="flex items-center justify-between mt-1 gap-1">
+            <button type="button" onclick="adjustCensus('newCase', -1)" class="w-6 h-6 rounded bg-sky-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">−</button>
+            <input type="number" id="c_newCase" min="0" value="0" onchange="updateCensusField('newCase', this.value)" class="w-10 text-center font-extrabold text-sky-900 bg-transparent focus:outline-none">
+            <button type="button" onclick="adjustCensus('newCase', 1)" class="w-6 h-6 rounded bg-sky-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">+</button>
+          </div>
+        </div>
+
+        <div class="bg-white border-2 border-purple-300 rounded-xl p-2 text-center flex flex-col justify-between">
+          <span class="block text-[10px] font-bold text-purple-700 uppercase">OT (Surgical)</span>
+          <div class="flex items-center justify-between mt-1 gap-1">
+            <button type="button" onclick="adjustCensus('ot', -1)" class="w-6 h-6 rounded bg-purple-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">−</button>
+            <input type="number" id="c_ot" min="0" value="0" onchange="updateCensusField('ot', this.value)" class="w-10 text-center font-extrabold text-purple-900 bg-transparent focus:outline-none">
+            <button type="button" onclick="adjustCensus('ot', 1)" class="w-6 h-6 rounded bg-purple-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">+</button>
+          </div>
+        </div>
+
+        <div class="bg-white border-2 border-indigo-300 rounded-xl p-2 text-center flex flex-col justify-between">
+          <span class="block text-[10px] font-bold text-indigo-700 uppercase">Transfer Out</span>
+          <div class="flex items-center justify-between mt-1 gap-1">
+            <button type="button" onclick="adjustCensus('transferOut', -1)" class="w-6 h-6 rounded bg-indigo-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">−</button>
+            <input type="number" id="c_transferOut" min="0" value="0" onchange="updateCensusField('transferOut', this.value)" class="w-10 text-center font-extrabold text-indigo-900 bg-transparent focus:outline-none">
+            <button type="button" onclick="adjustCensus('transferOut', 1)" class="w-6 h-6 rounded bg-indigo-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">+</button>
+          </div>
+        </div>
+
+        <div class="bg-white border-2 border-rose-300 rounded-xl p-2 text-center flex flex-col justify-between">
+          <span class="block text-[10px] font-bold text-rose-700 uppercase">Deaths</span>
+          <div class="flex items-center justify-between mt-1 gap-1">
+            <button type="button" onclick="adjustCensus('death', -1)" class="w-6 h-6 rounded bg-rose-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">−</button>
+            <input type="number" id="c_death" min="0" value="0" onchange="updateCensusField('death', this.value)" class="w-10 text-center font-extrabold text-rose-900 bg-transparent focus:outline-none">
+            <button type="button" onclick="adjustCensus('death', 1)" class="w-6 h-6 rounded bg-rose-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">+</button>
+          </div>
+        </div>
+
+        <div class="bg-white border-2 border-emerald-400 rounded-xl p-2 text-center flex flex-col justify-between">
+          <span class="block text-[10px] font-bold text-emerald-700 uppercase">Ward Admits</span>
+          <div class="flex items-center justify-between mt-1 gap-1">
+            <button type="button" onclick="adjustCensus('admit', -1)" class="w-6 h-6 rounded bg-emerald-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">−</button>
+            <input type="number" id="c_admit" min="0" value="0" onchange="updateCensusField('admit', this.value)" class="w-10 text-center font-extrabold text-emerald-900 bg-transparent focus:outline-none">
+            <button type="button" onclick="adjustCensus('admit', 1)" class="w-6 h-6 rounded bg-emerald-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">+</button>
+          </div>
+        </div>
+
+        <div class="bg-white border-2 border-amber-300 rounded-xl p-2 text-center flex flex-col justify-between">
+          <span class="block text-[10px] font-bold text-amber-700 uppercase">AOR</span>
+          <div class="flex items-center justify-between mt-1 gap-1">
+            <button type="button" onclick="adjustCensus('aor', -1)" class="w-6 h-6 rounded bg-amber-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">−</button>
+            <input type="number" id="c_aor" min="0" value="0" onchange="updateCensusField('aor', this.value)" class="w-10 text-center font-extrabold text-amber-900 bg-transparent focus:outline-none">
+            <button type="button" onclick="adjustCensus('aor', 1)" class="w-6 h-6 rounded bg-amber-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">+</button>
+          </div>
+        </div>
+
+        <div class="bg-white border-2 border-teal-300 rounded-xl p-2 text-center flex flex-col justify-between">
+          <span class="block text-[10px] font-bold text-teal-700 uppercase">Discharge</span>
+          <div class="flex items-center justify-between mt-1 gap-1">
+            <button type="button" onclick="adjustCensus('discharge', -1)" class="w-6 h-6 rounded bg-teal-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">−</button>
+            <input type="number" id="c_discharge" min="0" value="0" onchange="updateCensusField('discharge', this.value)" class="w-10 text-center font-extrabold text-teal-900 bg-transparent focus:outline-none">
+            <button type="button" onclick="adjustCensus('discharge', 1)" class="w-6 h-6 rounded bg-teal-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">+</button>
+          </div>
+        </div>
+
+        <div class="bg-white border-2 border-orange-300 rounded-xl p-2 text-center flex flex-col justify-between">
+          <span class="block text-[10px] font-bold text-orange-700 uppercase">DCR Bed Bal</span>
+          <div class="flex items-center justify-between mt-1 gap-1">
+            <button type="button" onclick="adjustCensus('pending', -1)" class="w-6 h-6 rounded bg-orange-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">−</button>
+            <input type="number" id="c_pending" min="0" value="0" onchange="updateCensusField('pending', this.value)" class="w-10 text-center font-extrabold text-orange-900 bg-transparent focus:outline-none">
+            <button type="button" onclick="adjustCensus('pending', 1)" class="w-6 h-6 rounded bg-orange-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">+</button>
+          </div>
+        </div>
+
+        <div class="bg-white border-2 border-cyan-300 rounded-xl p-2 text-center flex flex-col justify-between">
+          <span class="block text-[10px] font-bold text-cyan-700 uppercase">DCR Ext Bay</span>
+          <div class="flex items-center justify-between mt-1 gap-1">
+            <button type="button" onclick="adjustCensus('dcrExt', -1)" class="w-6 h-6 rounded bg-cyan-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">−</button>
+            <input type="number" id="c_dcrExt" min="0" value="0" onchange="updateCensusField('dcrExt', this.value)" class="w-10 text-center font-extrabold text-cyan-900 bg-transparent focus:outline-none">
+            <button type="button" onclick="adjustCensus('dcrExt', 1)" class="w-6 h-6 rounded bg-cyan-100 font-extrabold text-sm flex items-center justify-center cursor-pointer">+</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: WARD ADMISSION REGISTRY -->
+    <section class="bg-white border border-stone-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+      <div class="flex items-center justify-between pb-2 border-b border-stone-100 flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-emerald-700 text-white flex items-center justify-center">
+            <i data-lucide="building-2" class="w-3.5 h-3.5"></i>
+          </div>
+          <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-stone-900">Ward Admission Registry</h2>
+            <p class="text-[11px] text-stone-500">Log of resus patients admitted to inpatient wards by specialty</p>
+          </div>
+        </div>
+
+        <button type="button" onclick="openAdmissionModal()" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs hover:bg-emerald-700 transition cursor-pointer">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+          <span>Add Ward Admission</span>
+        </button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead>
+            <tr class="bg-stone-50 text-stone-700 font-bold border-b border-stone-200">
+              <th class="py-2 px-3">Bay / Origin</th>
+              <th class="py-2 px-3">Patient Name</th>
+              <th class="py-2 px-3">Patient ID</th>
+              <th class="py-2 px-3">Target Ward</th>
+              <th class="py-2 px-3">Discipline / Specialty</th>
+              <th class="py-2 px-3">Brief Diagnosis</th>
+              <th class="py-2 px-3 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody id="admitTableBody" class="divide-y divide-stone-100 font-medium"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECTION 5: SHIFT VERIFICATION & SIGN OFF -->
+    <section class="bg-white border-2 border-stone-300 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-200 flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-stone-900 text-white flex items-center justify-center">
+            <i data-lucide="check-circle" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h2 class="text-xs font-extrabold uppercase tracking-wider text-stone-900">Shift Verification &amp; Sign Off</h2>
+            <p class="text-[11px] text-stone-500">Shift Handover between Outgoing &amp; Incoming Staff (SN &amp; MA Only)</p>
+          </div>
+        </div>
+        <div id="signOffBadge" class="text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+          Shift In Progress (Pending Sign Off)
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div>
+          <label class="block text-[11px] font-bold text-stone-600 uppercase mb-1">Prepared By (Staff Name)</label>
+          <input type="text" id="signOffName" placeholder="e.g., SN Nuraqilah / AMO Azman" class="w-full bg-[#fbf9f4] border border-stone-300 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-stone-600 uppercase mb-1">Prepared By Role</label>
+          <select id="signOffRole" class="w-full bg-[#fbf9f4] border border-stone-300 rounded-xl px-3 py-2 text-xs font-bold text-stone-900 focus:outline-none cursor-pointer">
+            <option value="SN">Staff Nurse (SN)</option>
+            <option value="MA">Medical Assistant (MA)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-stone-600 uppercase mb-1">Report To (Staff Name)</label>
+          <input type="text" id="signOffReportToName" placeholder="e.g., SN Farah / AMO Rizal" class="w-full bg-[#fbf9f4] border border-stone-300 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-stone-600 uppercase mb-1">Report To Role</label>
+          <select id="signOffReportToRole" class="w-full bg-[#fbf9f4] border border-stone-300 rounded-xl px-3 py-2 text-xs font-bold text-stone-900 focus:outline-none cursor-pointer">
+            <option value="SN">Staff Nurse (SN)</option>
+            <option value="MA">Medical Assistant (MA)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+        <div>
+          <label class="block text-[11px] font-bold text-stone-600 uppercase mb-1">Sign Off Timestamp</label>
+          <input type="text" id="signOffTimestamp" readonly placeholder="Auto-generated upon Sign Off" class="w-full bg-stone-100 border border-stone-300 rounded-xl px-3 py-2 text-xs font-mono-code font-bold text-stone-700">
+        </div>
+        <div class="flex items-center text-[11px] text-stone-600 font-medium bg-stone-50 border border-stone-200 rounded-xl px-3 py-2">
+          <span>🛡️ <strong>SOP DCR Suite:</strong> Pengesahan dan penyerahan tugas (Handover) dikhaskan secara rasmi kepada <strong>SN</strong> dan <strong>MA</strong> sahaja.</span>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center justify-end gap-2 pt-2 border-t border-stone-100">
+        <button type="button" onclick="openResetConfirmModal()" class="w-full sm:w-auto px-4 py-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+          <span>Reset Form</span>
+        </button>
+
+        <button type="button" id="btnExecuteSignOff" onclick="executeSignOff()" class="w-full sm:w-auto px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition cursor-pointer">
+          <i data-lucide="lock" class="w-4 h-4"></i>
+          <span>Sign Off &amp; Archive to Registry</span>
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- FIREBASE & APPLICATION ENGINE (SINGLE MODULE SCRIPT) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Konfigurasi Rasmi Firebase Projek Anda
+    const firebaseConfig = {
+      apiKey: "AIzaSyB4kj18VszLgSBrTIYs46GXDZprDECe5v4",
+      authDomain: "dcrcensus.firebaseapp.com",
+      projectId: "dcrcensus",
+      storageBucket: "dcrcensus.firebasestorage.app",
+      messagingSenderId: "631732341488",
+      appId: "1:631732341488:web:9649de6efa06e7b36e9035",
+      measurementId: "G-ZQ9GR7MGJ6"
+    };
+
+    const BEDS_CONFIG = [
+      { key: 'dcr_1', name: 'DCR 1', category: 'DCR', zoneBadge: '🔴 RED ZONE • DCR RESUS' },
+      { key: 'dcr_2', name: 'DCR 2', category: 'DCR', zoneBadge: '🔴 RED ZONE • DCR RESUS' },
+      { key: 'sd_1', name: 'STEPDOWN 1', category: 'STEPDOWN', zoneBadge: '🟡 YELLOW ZONE • STEPDOWN' },
+      { key: 'sd_2', name: 'STEPDOWN 2', category: 'STEPDOWN', zoneBadge: '🟡 YELLOW ZONE • STEPDOWN' },
+      { key: 'sd_3', name: 'STEPDOWN 3', category: 'STEPDOWN', zoneBadge: '🟡 YELLOW ZONE • STEPDOWN' },
+      { key: 'sd_4', name: 'STEPDOWN 4', category: 'STEPDOWN', zoneBadge: '🟡 YELLOW ZONE • STEPDOWN' },
+      { key: 'ext_1', name: 'DCR Ext 1', category: 'EXT', zoneBadge: '🔵 BLUE ZONE • EXT BAY' },
+      { key: 'ext_2', name: 'DCR Ext 2', category: 'EXT', zoneBadge: '🔵 BLUE ZONE • EXT BAY' },
+      { key: 'ext_3', name: 'DCR Ext 3', category: 'EXT', zoneBadge: '🔵 BLUE ZONE • EXT BAY' },
+      { key: 'ext_4', name: 'DCR Ext 4', category: 'EXT', zoneBadge: '🔵 BLUE ZONE • EXT BAY' }
+    ];
+
+    let currentShift = 'Morning';
+    let currentShiftDate = '';
+    let currentZoneFilter = 'ALL';
+    let bedsData = {};
+    let censusData = { carryForward: 0, newCase: 0, ot: 0, transferOut: 0, death: 0, admit: 0, aor: 0, discharge: 0, pending: 0, dcrExt: 0 };
+    let admitList = [];
+    let rosterState = { shiftDate: '', consultant: '', physician: '', penyelia: '', mo: '', ho: '', ma: '', sn: '', ppk: '' };
+    let isShiftSignedOff = false;
+    let lastSignedOffHandoverText = '';
+
+    let db = null;
+    let auth = null;
+    let isFirebaseReady = false;
+    let isLocalUpdate = false;
+    const appId = 'dcr-suite-app';
+
+    function initBedState() {
+      BEDS_CONFIG.forEach(b => {
+        if (!bedsData[b.key]) {
+          bedsData[b.key] = {
+            isOccupied: false, id: '', name: '', age: '', gender: 'Male', transferFrom: '', transferTime: '', diagnosis: '', oxygen: '', status: '', plan: '',
+            txa: { given: false, timestamp: '' }
+          };
+        }
+      });
+    }
+
+    // MEMULAKAN SAMBUNGAN AWAN FIREBASE
+    async function initFirebaseCloudSync() {
+      const syncStatusText = document.getElementById('syncStatusText');
+      const activeUserDisplay = document.getElementById('activeUserDisplay');
+
+      try {
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        await signInAnonymously(auth);
+
+        const userId = auth.currentUser?.uid || 'user_' + Math.random().toString(36).substring(2, 7);
+        if (activeUserDisplay) {
+          activeUserDisplay.textContent = userId.substring(0, 8);
+          activeUserDisplay.classList.remove('hidden');
+        }
+        if (syncStatusText) syncStatusText.textContent = 'Live Synced';
+
+        isFirebaseReady = true;
+        const liveDocRef = doc(db, 'dcr_live_state', 'current_shift');
+
+        onSnapshot(liveDocRef, (snapshot) => {
+          if (!snapshot.exists() || isLocalUpdate) return;
+          const data = snapshot.data();
+          if (!data) return;
+
+          if (data.beds) { bedsData = data.beds; renderBeds(); }
+          if (data.census) {
+            censusData = data.census;
+            Object.keys(censusData).forEach(k => { const el = document.getElementById(`c_${k}`); if (el) el.value = censusData[k]; });
+          }
+          if (data.admits) { admitList = data.admits; renderAdmits(); }
+          if (data.roster) {
+            rosterState = data.roster;
+            applyRosterToForm();
+          }
+        }, (err) => {
+          console.warn("Firestore error:", err);
+          if (syncStatusText) syncStatusText.textContent = 'Sync Paused';
+        });
+
+      } catch (err) {
+        console.error("Firebase init error:", err);
+        if (syncStatusText) syncStatusText.textContent = 'Local Standalone';
+      }
+    }
+
+    async function pushCloudUpdate(section, payload) {
+      if (!isFirebaseReady || !db) return;
+      try {
+        isLocalUpdate = true;
+        const liveDocRef = doc(db, 'dcr_live_state', 'current_shift');
+        const updateObj = { updatedAt: new Date().toISOString() };
+        updateObj[section] = payload;
+        await setDoc(liveDocRef, updateObj, { merge: true });
+        setTimeout(() => { isLocalUpdate = false; }, 300);
+      } catch (err) {
+        isLocalUpdate = false;
+      }
+    }
+
+    function renderBeds() {
+      const container = document.getElementById('bedsGridContainer');
+      if (!container) return;
+
+      const filteredBeds = BEDS_CONFIG.filter(b => (currentZoneFilter === 'ALL' || b.category === currentZoneFilter));
+
+      container.innerHTML = filteredBeds.map(b => {
+        const data = bedsData[b.key] || {};
+        const isOcc = data.isOccupied === true;
+
+        return `
+          <div class="border-2 rounded-2xl shadow-xs overflow-hidden transition ${b.category === 'STEPDOWN' ? 'bg-[#fffbeb] border-amber-300' : (b.category === 'EXT' ? 'bg-[#f0f9ff] border-sky-300' : 'bg-[#fff1f2] border-rose-300')}">
+            <div class="px-4 py-2.5 border-b flex items-center justify-between font-extrabold text-sm">
+              <span>${b.name} <span class="text-[10px] font-normal">(${b.zoneBadge})</span></span>
+              <button type="button" onclick="toggleBedOccupied('${b.key}')" class="px-2 py-1 text-xs rounded ${isOcc ? 'bg-rose-600 text-white' : 'bg-white border'}">
+                ${isOcc ? 'Occupied' : 'Vacant'}
+              </button>
+            </div>
+            <div class="p-3 bg-white/80 space-y-2 text-xs">
+              <input type="text" value="${data.id || ''}" placeholder="Patient ID/SB No." oninput="updateBedField('${b.key}', 'id', this.value)" class="w-full border rounded px-2 py-1 font-semibold">
+              <input type="text" value="${data.name || ''}" placeholder="FULL PATIENT NAME" oninput="this.value = this.value.toUpperCase(); updateBedField('${b.key}', 'name', this.value)" class="w-full border rounded px-2 py-1 font-bold uppercase">
+              <textarea placeholder="Diagnosis..." oninput="updateBedField('${b.key}', 'diagnosis', this.value)" class="w-full border rounded px-2 py-1">${data.diagnosis || ''}</textarea>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateBedField(bedKey, field, val) {
+      if (!bedsData[bedKey]) initBedState();
+      bedsData[bedKey][field] = val;
+      if (val.trim() !== '') bedsData[bedKey].isOccupied = true;
+      pushCloudUpdate('beds', bedsData);
+    }
+
+    function toggleBedOccupied(bedKey) {
+      if (!bedsData[bedKey]) initBedState();
+      bedsData[bedKey].isOccupied = !bedsData[bedKey].isOccupied;
+      pushCloudUpdate('beds', bedsData);
+      renderBeds();
+    }
+
+    function adjustCensus(field, delta) {
+      censusData[field] = Math.max(0, (parseInt(censusData[field], 10) || 0) + delta);
+      document.getElementById(`c_${field}`).value = censusData[field];
+      pushCloudUpdate('census', censusData);
+    }
+
+    function updateCensusField(field, val) {
+      censusData[field] = parseInt(val, 10) || 0;
+      pushCloudUpdate('census', censusData);
+    }
+
+    function applyRosterToForm() {
+      if (document.getElementById('rosterConsultant')) document.getElementById('rosterConsultant').value = rosterState.consultant || '';
+      if (document.getElementById('rosterPhysician')) document.getElementById('rosterPhysician').value = rosterState.physician || '';
+      if (document.getElementById('rosterSN')) document.getElementById('rosterSN').value = rosterState.sn || '';
+    }
+
+    function saveLocalRoster() {
+      rosterState = {
+        consultant: document.getElementById('rosterConsultant')?.value || '',
+        physician: document.getElementById('rosterPhysician')?.value || '',
+        sn: document.getElementById('rosterSN')?.value || ''
+      };
+      pushCloudUpdate('roster', rosterState);
+    }
+
+    function initApp() {
+      initBedState();
+      renderBeds();
+      initFirebaseCloudSync();
+
+      setInterval(() => {
+        const now = new Date();
+        document.getElementById('headerLiveDate').textContent = now.toLocaleDateString('en-MY');
+        document.getElementById('headerLiveClock').textContent = `${now.toLocaleTimeString('en-GB')} MYT`;
+      }, 1000);
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    Object.assign(window, {
+      toggleBedOccupied, updateBedField, adjustCensus, updateCensusField, saveLocalRoster,
+      filterZone: (z) => { currentZoneFilter = z; renderBeds(); }
+    });
+
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
